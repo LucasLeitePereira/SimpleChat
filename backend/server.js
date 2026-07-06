@@ -134,10 +134,7 @@ wss.on("connection", (socket) => {
               user: { nome: nomeUser },
               userCount: quantidade,
             },
-            socket,
           );
-
-          socket.send(`${nomeUser} entrou na sala com sucesso!`);
         } catch (error) {
           console.error("Erro ao entrar na sala:", error);
           socket.send("Erro ao entrar na sala. Tente novamente.");

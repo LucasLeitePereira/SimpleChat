@@ -116,10 +116,19 @@ export default function App() {
       }
 
       if (parsed.type === "userJoined" && parsed.user?.nome) {
+        const joinedName = parsed.user.nome;
+        const currentName = userName.trim();
+
         if (typeof parsed.userCount === "number") {
           setRoomUserCount(parsed.userCount);
         }
-        pushSystemMessage(`${parsed.user.nome} entrou na sala.`);
+
+        if (joinedName === currentName) {
+          pushSystemMessage("Você entrou na sala.");
+        } else {
+          pushSystemMessage(`${joinedName} entrou na sala.`);
+        }
+
         return;
       }
 
