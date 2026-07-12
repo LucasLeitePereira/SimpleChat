@@ -17,10 +17,29 @@ function obterNomeUser(user) {
   return nome;
 }
 
+function obterIpCliente(req) {
+  const ipBruto =
+    req?.headers?.["x-forwarded-for"] || req?.socket?.remoteAddress;
+
+  if (!ipBruto) {
+    return "IP-desconhecido";
+  }
+
+  const ip = Array.isArray(ipBruto) ? ipBruto[0] : ipBruto.split(",")[0].trim();
+
+  if (ip.startsWith("::ffff:")) {
+    return ip.replace("::ffff:", "");
+  }
+
+  return ip;
+}
+
 const socketSala = new Map();
 // {socket, tokenSala}
 const salas = new Map();
 // {tokenSala, {salaId, users: [{nome, socket}], messages}}
+const socketIps = new Map();
+// {socket, ip}
 
 function contarUsuariosSala(tokenSala) {
   const sala = salas.get(tokenSala);
@@ -43,8 +62,10 @@ function enviarParaSala(sala, payload, socketIgnorado) {
   });
 }
 
-wss.on("connection", (socket) => {
-  console.log("Alguém conectou!");
+wss.on("connection", (socket, req) => {
+  const ipCliente = obterIpCliente(req);
+  socketIps.set(socket, ipCliente);
+  console.warn(`[AVISO] Nova conexão recebida de IP: ${ipCliente}`);
 
   socket.on("message", (data) => {
     data = JSON.parse(data);
@@ -67,6 +88,9 @@ wss.on("connection", (socket) => {
             console.log(nomeUser);
             return;
           }
+
+          const ip = socketIps.get(socket) || "IP-desconhecido";
+          console.warn(`[AVISO] Usuário conectado: ${nomeUser} (${ip})`);
 
           sala.users.push({ nome: nomeUser, socket });
 
@@ -105,6 +129,9 @@ wss.on("connection", (socket) => {
             return;
           }
 
+          const ip = socketIps.get(socket) || "IP-desconhecido";
+          console.warn(`[AVISO] Usuário conectado: ${nomeUser} (${ip})`);
+
           if (!salas.has(tokenSala)) {
             socket.send("Token da sala não encontrado.");
             return;
@@ -127,14 +154,11 @@ wss.on("connection", (socket) => {
             userCount: quantidade,
           });
 
-          enviarParaSala(
-            sala,
-            {
-              type: "userJoined",
-              user: { nome: nomeUser },
-              userCount: quantidade,
-            },
-          );
+          enviarParaSala(sala, {
+            type: "userJoined",
+            user: { nome: nomeUser },
+            userCount: quantidade,
+          });
         } catch (error) {
           console.error("Erro ao entrar na sala:", error);
           socket.send("Erro ao entrar na sala. Tente novamente.");
@@ -232,5 +256,7 @@ wss.on("connection", (socket) => {
 
       socketSala.delete(socket);
     }
+
+    socketIps.delete(socket);
   });
 });
